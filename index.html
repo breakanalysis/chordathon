@@ -3,40 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Metronome with Chords</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      margin-top: 50px;
+      margin: 20px;
     }
-    #bpm {
-      width: 200px;
+    #controls {
+      margin-top: 30px;
     }
     #current-chord, #next-chord {
-      font-size: 1.2em;
-      margin: 10px;
+      font-size: 1.8em;
+      margin: 15px 0;
     }
     #beat-tracker {
       display: flex;
       justify-content: center;
-      margin: 20px;
-      font-size: 1.2em;
+      margin: 25px 0;
+      font-size: 2em;
+      gap: 15px;
     }
     .beat-marker {
-      width: 30px;
+      width: 40px;
       text-align: center;
       position: relative;
     }
     .beat-marker::after {
       content: "";
       display: block;
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       background-color: red;
       border-radius: 50%;
       position: absolute;
-      bottom: -15px;
+      bottom: -18px;
       left: 50%;
       transform: translateX(-50%);
       opacity: 0;
@@ -45,55 +45,66 @@
       opacity: 1;
     }
     .bpm-controls {
-      margin: 10px;
+      margin: 15px 0;
     }
     .bpm-controls button {
-      margin: 5px;
-      padding: 5px 10px;
-      font-size: 1em;
+      margin: 0 5px;
+      padding: 8px 15px;
+      font-size: 1.1em;
+    }
+    #bpm {
+      width: 250px;
+      margin: 15px 0;
+    }
+    #main-buttons button {
+      padding: 10px 25px;
+      font-size: 1.2em;
+      margin: 0 5px;
     }
   </style>
 </head>
 <body>
-  <h1>Metronome with Chords</h1>
-  <div class="bpm-controls">
-    <button id="bpm-minus-5">-5</button>
-    <button id="bpm-minus-1">-1</button>
-    <span id="bpm-value">60</span>
-    <button id="bpm-plus-1">+1</button>
-    <button id="bpm-plus-5">+5</button>
+  <div id="chords">
+    <div id="current-chord">Play: C Maj7 (root)</div>
+    <div id="next-chord">Next: D-7 (1st)</div>
   </div>
-  <div>
-    <label for="bpm">BPM: </label>
-    <input type="range" id="bpm" min="40" max="200" value="60">
-  </div>
-  <div id="current-chord">Play: C Maj7 (root)</div>
-  <div id="next-chord">Next: D-7 (1st)</div>
+
   <div id="beat-tracker">
     <div class="beat-marker">1</div>
     <div class="beat-marker">2</div>
     <div class="beat-marker">3</div>
     <div class="beat-marker">4</div>
-    <div class="beat-marker">1</div>
-    <div class="beat-marker">2</div>
-    <div class="beat-marker">3</div>
-    <div class="beat-marker">4</div>
   </div>
-  <button id="start">Start</button>
-  <button id="stop">Stop</button>
+
+  <div id="controls">
+    <div class="bpm-controls">
+      <button id="bpm-minus-5">-5</button>
+      <button id="bpm-minus-1">-1</button>
+      <span id="bpm-value">60</span>
+      <button id="bpm-plus-1">+1</button>
+      <button id="bpm-plus-5">+5</button>
+    </div>
+    <input type="range" id="bpm" min="1" max="250" value="60">
+    <div id="main-buttons">
+      <button id="start">Start</button>
+      <button id="stop">Stop</button>
+      <button id="mute">Mute</button>
+    </div>
+  </div>
 
   <script>
     // Audio context and sound setup
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let audioContext;
     let oscillator;
     let gainNode;
+    let isMuted = false;
 
     // Metronome state
     let bpm = 60;
-    let beat = 0; // Beat counter (0 to 7)
-    let interval;
-    let firstRound = true; // Flag to track the first round
-    let isInitialized = false; // Flag to track initialization
+    let beat = 0;
+    let timeoutId;
+    let firstRound = true;
+    let isInitialized = false;
 
     // Chord data
     const keys = ["C", "C#/D♭", "D", "D#/E♭", "E", "F", "F#/G♭", "G", "G#/A♭", "A", "A#/B♭", "B"];
@@ -108,12 +119,12 @@
     const beatMarkers = document.querySelectorAll('.beat-marker');
     const startButton = document.getElementById('start');
     const stopButton = document.getElementById('stop');
+    const muteButton = document.getElementById('mute');
     const bpmMinus5Button = document.getElementById('bpm-minus-5');
     const bpmMinus1Button = document.getElementById('bpm-minus-1');
     const bpmPlus1Button = document.getElementById('bpm-plus-1');
     const bpmPlus5Button = document.getElementById('bpm-plus-5');
 
-    // Function to generate a random chord
     function getRandomChord() {
       const key = keys[Math.floor(Math.random() * keys.length)];
       const chordType = chordTypes[Math.floor(Math.random() * chordTypes.length)];
@@ -121,123 +132,93 @@
       return `${key} ${chordType} (${inversion})`;
     }
 
-    // Initialize chords with random values (only once)
     function initializeChords() {
       if (!isInitialized) {
         currentChordDisplay.textContent = `Play: ${getRandomChord()}`;
         nextChordDisplay.textContent = `Next: ${getRandomChord()}`;
-        isInitialized = true; // Mark initialization as complete
+        isInitialized = true;
       }
     }
 
-    // Function to start the metronome
     function startMetronome() {
-      if (interval) clearInterval(interval); // Clear existing interval if any
-      const intervalTime = (60 / bpm) * 1000; // Convert BPM to milliseconds
-      interval = setInterval(processBeat, intervalTime);
+      if (timeoutId) clearTimeout(timeoutId); // Clear any existing timeout
+      processBeat(); // Start the first beat immediately
     }
 
-    // Update BPM display and value
     function updateBpm(value) {
-      bpm = Math.max(40, Math.min(200, value)); // Clamp BPM between 40 and 200
+      bpm = Math.max(1, Math.min(250, value));
       bpmSlider.value = bpm;
       bpmValue.textContent = bpm;
-
-      // Restart the metronome with the new BPM if it's already running
-      if (interval) {
-        startMetronome();
-      }
     }
 
-    // BPM control event listeners
+    // Event listeners
     bpmMinus5Button.addEventListener('click', () => updateBpm(bpm - 5));
     bpmMinus1Button.addEventListener('click', () => updateBpm(bpm - 1));
     bpmPlus1Button.addEventListener('click', () => updateBpm(bpm + 1));
     bpmPlus5Button.addEventListener('click', () => updateBpm(bpm + 5));
-
-    // Update BPM slider
     bpmSlider.addEventListener('input', () => updateBpm(parseInt(bpmSlider.value)));
 
-    // Start metronome
     startButton.addEventListener('click', () => {
-      initializeChords(); // Initialize chords (only once)
-      beat = 0; // Reset beat counter
-      firstRound = true; // Reset first round flag
+      if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === 'suspended') audioContext.resume();
+      initializeChords();
+      beat = 0;
+      firstRound = true;
       startMetronome();
     });
 
-    // Stop metronome
     stopButton.addEventListener('click', () => {
-      clearInterval(interval);
-      interval = null; // Reset interval
-      beat = 0; // Reset beat counter
-      firstRound = true; // Reset first round flag
-      updateBeatMarkers(); // Reset beat markers
+      clearTimeout(timeoutId);
+      timeoutId = null;
+      beat = 0;
+      firstRound = true;
+      updateBeatMarkers();
     });
 
-    // Update beat markers
+    muteButton.addEventListener('click', () => {
+      isMuted = !isMuted;
+      muteButton.textContent = isMuted ? "Unmute" : "Mute";
+    });
+
     function updateBeatMarkers() {
       beatMarkers.forEach((marker, index) => {
         marker.classList.remove('active');
-        if (index === beat) {
-          marker.classList.add('active');
-        }
+        if (index === beat) marker.classList.add('active');
       });
     }
 
-    // Update chords
     function updateChords() {
       currentChordDisplay.textContent = `Play: ${nextChordDisplay.textContent.replace('Next: ', '')}`;
       nextChordDisplay.textContent = `Next: ${getRandomChord()}`;
     }
 
-    // Play click sound
     function playClick() {
-      // Create oscillator and gain node
+      if (isMuted) return;
       oscillator = audioContext.createOscillator();
       gainNode = audioContext.createGain();
-
-      // Configure oscillator frequency (higher pitch for beat 0)
-      const frequency = beat === 0 ? 1200 : 1000; // 1200 Hz for beat 0, 1000 Hz for others
+      const frequency = beat === 0 ? 1200 : 1000;
       oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
       oscillator.type = 'square';
-
-      // Configure gain node for a short click sound
       gainNode.gain.setValueAtTime(1, audioContext.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.05);
-
-      // Connect nodes
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
-
-      // Start and stop oscillator
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.05);
     }
 
-    // Process each beat
     function processBeat() {
-      // Update chords on beat 0, but skip the first round
-      if (beat === 0 && !firstRound) {
-        updateChords();
-      }
-
-      // Play click sound
+      if (beat === 0 && !firstRound) updateChords();
       playClick();
-
-      // Update beat display
       updateBeatMarkers();
+      beat = (beat + 1) % 4;
+      if (beat === 0) firstRound = false;
 
-      // Increment beat counter
-      beat = (beat + 1) % 8;
-
-      // End the first round after 8 beats
-      if (beat === 0) {
-        firstRound = false;
-      }
+      // Schedule the next beat
+      const intervalTime = (60 / bpm) * 1000;
+      timeoutId = setTimeout(processBeat, intervalTime);
     }
 
-    // Initialize chords when the page loads
     initializeChords();
   </script>
 </body>
