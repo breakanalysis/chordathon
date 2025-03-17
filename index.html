@@ -61,6 +61,18 @@
       font-size: 1.2em;
       margin: 0 5px;
     }
+    .checkbox-group {
+      margin: 20px 0;
+      text-align: left;
+      display: inline-block;
+    }
+    .checkbox-group h3 {
+      margin-bottom: 10px;
+    }
+    .checkbox-group label {
+      display: block;
+      margin: 5px 0;
+    }
   </style>
 </head>
 <body>
@@ -92,6 +104,20 @@
     </div>
   </div>
 
+  <!-- Checkboxes for keys, chord types, and inversions -->
+  <div class="checkbox-group">
+    <h3>Keys to Include</h3>
+    <div id="keys-checkboxes"></div>
+  </div>
+  <div class="checkbox-group">
+    <h3>Chord Types to Include</h3>
+    <div id="chord-types-checkboxes"></div>
+  </div>
+  <div class="checkbox-group">
+    <h3>Inversions to Include</h3>
+    <div id="inversions-checkboxes"></div>
+  </div>
+
   <script>
     // Audio context and sound setup
     let audioContext;
@@ -107,9 +133,14 @@
     let isInitialized = false;
 
     // Chord data
-    const keys = ["A", "B", "C", "D", "E", "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"];
-    const chordTypes = ["△", "-7", "7", "ø7"];
-    const inversions = ["r", "1", "2", "3"];
+    const allKeys = ["C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"];
+    const allChordTypes = ["△", "-7", "7", "ø7"];
+    const allInversions = ["r", "1", "2", "3"];
+
+    // Selected options (default to all)
+    let selectedKeys = [...allKeys];
+    let selectedChordTypes = [...allChordTypes];
+    let selectedInversions = [...allInversions];
 
     // DOM elements
     const bpmSlider = document.getElementById('bpm');
@@ -124,15 +155,59 @@
     const bpmMinus1Button = document.getElementById('bpm-minus-1');
     const bpmPlus1Button = document.getElementById('bpm-plus-1');
     const bpmPlus5Button = document.getElementById('bpm-plus-5');
+    const keysCheckboxes = document.getElementById('keys-checkboxes');
+    const chordTypesCheckboxes = document.getElementById('chord-types-checkboxes');
+    const inversionsCheckboxes = document.getElementById('inversions-checkboxes');
+
+    // Function to generate checkboxes
+    function generateCheckboxes(options, container, selectedOptions, type) {
+      container.innerHTML = options.map(option => {
+        const isCombined = option.includes('/');
+        const keys = isCombined ? option.split('/') : [option];
+        const isChecked = keys.every(key => selectedOptions.includes(key));
+        return `
+          <label>
+            <input type="checkbox" value="${option}" ${isChecked ? 'checked' : ''}>
+            ${option}
+          </label>
+        `;
+      }).join('');
+
+      // Add event listeners to update selected options
+      container.querySelectorAll('input').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+          const keys = checkbox.value.includes('/') ? checkbox.value.split('/') : [checkbox.value];
+          if (checkbox.checked) {
+            keys.forEach(key => {
+              if (!selectedOptions.includes(key)) selectedOptions.push(key);
+            });
+          } else {
+            keys.forEach(key => {
+              selectedOptions.splice(selectedOptions.indexOf(key), 1);
+            });
+          }
+        });
+      });
+    }
+
+    // Generate checkboxes for keys, chord types, and inversions
+    generateCheckboxes(
+      ["C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab", "A", "A#/Bb", "B"],
+      keysCheckboxes,
+      selectedKeys,
+      'keys'
+    );
+    generateCheckboxes(allChordTypes, chordTypesCheckboxes, selectedChordTypes, 'chordTypes');
+    generateCheckboxes(allInversions, inversionsCheckboxes, selectedInversions, 'inversions');
 
     // Function to generate a random chord with superscript
     function getRandomChord() {
-      const key = keys[Math.floor(Math.random() * keys.length)];
-      const chordType = chordTypes[Math.floor(Math.random() * chordTypes.length)];
-      const inversion = inversions[Math.floor(Math.random() * inversions.length)];
+      const key = selectedKeys[Math.floor(Math.random() * selectedKeys.length)];
+      const chordType = selectedChordTypes[Math.floor(Math.random() * selectedChordTypes.length)];
+      const inversion = selectedInversions[Math.floor(Math.random() * selectedInversions.length)];
 
       // Format the chord type with superscript
-      return `${key}<sup>${chordType}</sup>(${inversion})`;
+      return `${key} <sup>${chordType}</sup> (${inversion})`;
     }
 
     function initializeChords() {
