@@ -65,8 +65,8 @@
 </head>
 <body>
   <div id="chords">
-    <div id="current-chord">Play: C Maj7 (root)</div>
-    <div id="next-chord">Next: D-7 (1st)</div>
+    <div id="current-chord">Play: C <sup>△</sup> (r)</div>
+    <div id="next-chord">Next: D <sup>-7</sup> (1)</div>
   </div>
 
   <div id="beat-tracker">
@@ -107,9 +107,9 @@
     let isInitialized = false;
 
     // Chord data
-    const keys = ["C", "C#/D♭", "D", "D#/E♭", "E", "F", "F#/G♭", "G", "G#/A♭", "A", "A#/B♭", "B"];
-    const chordTypes = ["Maj7", "-7", "7", "ø7"];
-    const inversions = ["root", "1st", "2nd", "3rd"];
+    const keys = ["A", "B", "C", "D", "E", "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B"];
+    const chordTypes = ["△", "-7", "7", "ø7"];
+    const inversions = ["r", "1", "2", "3"];
 
     // DOM elements
     const bpmSlider = document.getElementById('bpm');
@@ -125,17 +125,20 @@
     const bpmPlus1Button = document.getElementById('bpm-plus-1');
     const bpmPlus5Button = document.getElementById('bpm-plus-5');
 
+    // Function to generate a random chord with superscript
     function getRandomChord() {
       const key = keys[Math.floor(Math.random() * keys.length)];
       const chordType = chordTypes[Math.floor(Math.random() * chordTypes.length)];
       const inversion = inversions[Math.floor(Math.random() * inversions.length)];
-      return `${key} ${chordType} (${inversion})`;
+
+      // Format the chord type with superscript
+      return `${key}<sup>${chordType}</sup>(${inversion})`;
     }
 
     function initializeChords() {
       if (!isInitialized) {
-        currentChordDisplay.textContent = `Play: ${getRandomChord()}`;
-        nextChordDisplay.textContent = `Next: ${getRandomChord()}`;
+        currentChordDisplay.innerHTML = `Play: ${getRandomChord()}`;
+        nextChordDisplay.innerHTML = `Next: ${getRandomChord()}`;
         isInitialized = true;
       }
     }
@@ -188,8 +191,8 @@
     }
 
     function updateChords() {
-      currentChordDisplay.textContent = `Play: ${nextChordDisplay.textContent.replace('Next: ', '')}`;
-      nextChordDisplay.textContent = `Next: ${getRandomChord()}`;
+      currentChordDisplay.innerHTML = `Play: ${nextChordDisplay.innerHTML.replace('Next: ', '')}`;
+      nextChordDisplay.innerHTML = `Next: ${getRandomChord()}`;
     }
 
     function playClick() {
